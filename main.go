@@ -73,14 +73,18 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w , "Method not allowed", http.StatusMethodNotAllowed)
 		return 
 	}
-	// if id is in endpoint
-	// path:=r.URL.Path
-	// paths:=strings.Split(path, "/")
-	// index,err:=strconv.Atoi(paths[2])
-    // if  err!= nil {
-	// 	http.Error(w , "cannot seperate index from URL", http.StatusMethodNotAllowed)
-	// 	return
-    // }
+
+	// if id is in endpoint and not passed in body
+	/* path:=r.URL.Path
+	   paths:=strings.Split(path, "/")
+	   index,err:=strconv.Atoi(paths[2])
+        if  err!= nil {
+	 	http.Error(w , "cannot seperate index from URL", http.StatusMethodNotAllowed)
+	 	return
+     }
+	*/
+
+	
 	// when id is passed in body using "id"
 
 	body, err := io.ReadAll(r.Body)
@@ -119,10 +123,13 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 
 
 func main(){
-// in body json of key "tweet"
+
+  // in body json of key "tweet"- eg{"tweet":"hello world"} 
   http.HandleFunc("/addTweet/{id}",addTweet)
-// in body json of key "id"
+
+  // in body json of key "id"- eg {"id":"1" }
   http.HandleFunc("/getTweet",getTweet)
+
   //in case id is passed as endpoint
   //http.HandleFunc("/getTweet/{id}",getTweet)
   
