@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type User struct {
@@ -30,17 +29,21 @@ func addTweet(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 
-	url_body :=r.URL.Path
-	url_paths:=strings.Split(url_body,"/")
-	userID,err:=strconv.Atoi(url_paths[2])
-	if err!=nil {
-		http.Error(w, "Invalid user id ", http.StatusBadRequest)
-		return  
+	userIDStr := r.PathValue("id")
+	if userIDStr == "" {
+		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
+		return
 	}
+
+	userID,err:=strconv.Atoi(userIDStr)
+    if  err!= nil {
+	 	http.Error(w , "cannot seperate index from URL", 400)
+	 	return
+    }
 
 	body,err:=io.ReadAll(r.Body)
 	if err!=nil {
-		http.Error(w, "error while reading request body ", http.StatusBadRequest)
+		http.Error(w, "error while reading request body ", 400)
 		return  
 	}
 	body_map:=make(map[string]string)
@@ -57,7 +60,7 @@ func addTweet(w http.ResponseWriter, r *http.Request) {
 			user[i].Tweets=append(user[i].Tweets, tweet)
 			jsonData,err :=json.Marshal(user[i].Tweets)
 			if err!=nil {
-				http.Error(w , "cannot convert tweets to json", http.StatusMethodNotAllowed)
+				http.Error(w , "cannot convert tweets to json", 400)
 		        return
 
 			}
@@ -73,21 +76,23 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w , "Method not allowed", http.StatusMethodNotAllowed)
 		return 
 	}
-
-	// if id is in endpoint and not passed in body
-	/* path:=r.URL.Path
-	   paths:=strings.Split(path, "/")
-	   index,err:=strconv.Atoi(paths[2])
-        if  err!= nil {
-	 	http.Error(w , "cannot seperate index from URL", http.StatusMethodNotAllowed)
-	 	return
-     }
-	*/
-
 	
+
+	userIDStr := r.PathValue("id")
+	if userIDStr == "" {
+		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
+		return
+	}
+
+	userID,err:=strconv.Atoi(userIDStr)
+    if  err!= nil {
+	 	http.Error(w , "cannot seperate index from URL", 400)
+	 	return
+    }
+
 	// when id is passed in body using "id"
 
-	body, err := io.ReadAll(r.Body)
+	/*body, err := io.ReadAll(r.Body)
 	if err!=nil {
 		http.Error(w , "error in reading r.body", http.StatusMethodNotAllowed)
 		return
@@ -102,13 +107,13 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w , "could not find id from body", http.StatusMethodNotAllowed)
 		return
 
-	}
+	} */
 	
 	for _,u := range user {
-		if u.Id ==index{
+		if u.Id ==userID{
 			jsonData, err :=json.Marshal(u.Tweets)
 			if err!=nil {
-				http.Error(w , "cannot convert tweets to json", http.StatusMethodNotAllowed)
+				http.Error(w , "cannot convert tweets to json", 400)
 		        return
 
 			}
@@ -128,10 +133,10 @@ func main(){
   http.HandleFunc("/addTweet/{id}",addTweet)
 
   // in body json of key "id"- eg {"id":"1" }
-  http.HandleFunc("/getTweet",getTweet)
+  //http.HandleFunc("/getTweet",getTweet)
 
   //in case id is passed as endpoint
-  //http.HandleFunc("/getTweet/{id}",getTweet)
+  http.HandleFunc("/getTweet/{id}",getTweet)
   
   log.Fatal(http.ListenAndServe(":8000", nil))
 }
