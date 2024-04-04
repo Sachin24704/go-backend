@@ -12,9 +12,8 @@ import (
 )
 
 var db  *sql.DB
- 
-//when db is not connected
-/*type User struct {
+
+type User struct {
 	Id     int  `json:"id"`
 	Name   string  `json:"name"`
 	Tweets []string  `json:"tweets"`
@@ -26,7 +25,7 @@ var user = []User{
 	{3, "rahul", []string{"my name is rahul id 3"}}, 
 	{4, "vinay", []string{"my name is vinay id 4"}}, 
 	{5, "ankit", []string{"my name is ankit id 5"}},
-}*/
+}
 
 var userIDs= make([]int,0)
 
@@ -179,7 +178,7 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 
 	
 
-	// when db is not connected
+	
 	/*for _,u := range user {
 		if u.Id ==userID{
 			jsonData, err :=json.Marshal(u.Tweets)
@@ -229,8 +228,6 @@ func main(){
 
   //in case id is passed as endpoint
     http.HandleFunc("/getTweet/{id}",getTweet)
-
-	
   
     log.Fatal(http.ListenAndServe(":8000", nil))
 }
