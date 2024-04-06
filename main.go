@@ -14,12 +14,12 @@ import (
 var db *sql.DB
 var err error
 
-func addTweet(w http.ResponseWriter, r *http.Request) {
+func postTweet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.PathValue("id")
+	userIDStr := r.PathValue("userid")
 	if userIDStr == "" {
 		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
 		return
@@ -64,12 +64,12 @@ func addTweet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Successfully added the Tweet")
 }
 
-func getTweet(w http.ResponseWriter, r *http.Request) {
+func getTweets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.PathValue("id")
+	userIDStr := r.PathValue("userid")
 	if userIDStr == "" {
 		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
 		return
@@ -132,8 +132,7 @@ func main() {
 	}
 	log.Println("DB connected")
 	// in body json of key "tweet"- eg{"tweet":"hello world"}
-	http.HandleFunc("/addTweet/{id}", addTweet)
-	//in case id is passed as endpoint
-	http.HandleFunc("/getTweet/{id}", getTweet)
+	http.HandleFunc("/post-tweet/{userid}", postTweet)
+	http.HandleFunc("/get-tweet/{userid}", getTweets)
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
