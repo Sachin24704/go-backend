@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package tweet.v1;
+
+option go_package = "github.com/Sachin24704/go-backend/gen/tweet/v1";
+
+message Tweet{
+    string tweet = 1;
+}
+
+message UserId{
+    int32 user_id =1;
+}
+
+service AddUserService{
+    rpc  AddUser(AddUserRequest) returns(StatusResponse);
+}
+
+service DeleteUserService{
+    rpc DeleteUser(UserRequest) returns(StatusResponse);
+}
+
+service GetTweetsService {
+    rpc GetTweets (UserRequest) returns(TweetResponse) ;
+}
+
+service  PostTweetService {
+    rpc PostTweet(PostTweetRequest) returns(StatusResponse) ;
+}
+
+service DeleteTweetService {
+    rpc DeleteTweet(DeleteTweetRequest) returns(StatusResponse) ;
+}
+
+message AddUserRequest{
+    string  userName = 1;
+}
+
+message UserRequest{
+    UserId user_id = 1;
+}
+
+message PostTweetRequest {
+    UserId user_id =1;
+    Tweet tweet =2;
+}
+
+message TweetResponse{
+    repeated Tweet tweets = 1;
+
+}
+
+message DeleteTweetRequest{
+    int32 tweet_id =1;
+    UserId user_id =2;
+}
+
+message  StatusResponse{
+    string status =1;
+}
+
+
+
+
+
+

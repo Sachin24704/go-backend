@@ -11,15 +11,17 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-var err error
+type service struct {
+	db *sql.DB
+}
 
-func addTweet(w http.ResponseWriter, r *http.Request) {
+func (s *service) postTweet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.PathValue("id")
+	db := s.db
+	userIDStr := r.PathValue("userid")
 	if userIDStr == "" {
 		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
 		return
@@ -64,12 +66,13 @@ func addTweet(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Successfully added the Tweet")
 }
 
-func getTweet(w http.ResponseWriter, r *http.Request) {
+func (s *service) getTweets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.PathValue("id")
+	db := s.db
+	userIDStr := r.PathValue("userid")
 	if userIDStr == "" {
 		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
 		return
@@ -121,7 +124,7 @@ func getTweet(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// connect to db
-	db, err = sql.Open("postgres", "postgres://postgres:123456@localhost:5432/twitter?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:123456@localhost:5432/twitter?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,9 +134,9 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("DB connected")
+	s := &service{db: db}
 	// in body json of key "tweet"- eg{"tweet":"hello world"}
-	http.HandleFunc("/addTweet/{id}", addTweet)
-	//in case id is passed as endpoint
-	http.HandleFunc("/getTweet/{id}", getTweet)
+	http.HandleFunc("/post-tweet/{userid}", s.postTweet)
+	http.HandleFunc("/get-tweets/{userid}", s.getTweets)
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
