@@ -1,0 +1,32 @@
+syntax="proto3";
+
+package proto;
+
+import "google/protobuf/empty.proto";
+
+message User{
+    // unique userID generated for every user
+    string id=1;
+    // name of the user
+    string name =2;
+    // timestamp when user is created 
+    string create_time = 4;
+
+}
+
+service UserService{
+    // to add a new user
+    rpc CreateUser(CreateUserRequest) returns(User);
+    // to delete an existing user
+    rpc DeletUser(DeletUserRequest)returns(google.protobuf.Empty);
+}
+
+message  CreateUserRequest {
+    // name of the user
+    string name = 1;
+}
+
+message DeletUserRequest {
+    // id of the user
+    string id = 1;
+}

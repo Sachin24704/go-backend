@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package proto;
+
+import "google/protobuf/empty.proto";
+
+message Tweet{
+    // usinque id of the tweet
+    string id = 1;
+    // unique userid of the user creating a tweet 
+    string author = 2;
+    // content of the tweet
+    string tweet = 3;
+    // time when this tweet was created
+    string create_time = 4;
+}
+
+service TweetService{
+    // Add a new tweet
+    rpc CreateTweet(CreateTweetRequest) returns (google.protobuf.Empty);
+    // listing tweets of a particular author
+    rpc ListTweets(ListTweetsRequest) returns (ListTweetsResponse);
+    // delete a tweet
+    rpc DeleteTweet(DeleteTweetRequest) returns (google.protobuf.Empty);
+}
+
+message CreateTweetRequest {
+    // content of the tweet
+    string tweet = 1;
+   // unique userid of the user creating a tweet 
+    string  author = 2;
+}
+
+message ListTweetsRequest {
+    // unique userid of the user to list its tweets
+    string author =1 ;
+} 
+
+message ListTweetsResponse{
+    // list of tweets
+    repeated Tweet tweets = 1;
+}
+
+message DeleteTweetRequest {
+    // id of the tweet to be deleted 
+    string id =1;
+}
+
