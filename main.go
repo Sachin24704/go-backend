@@ -1,130 +1,144 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
-	"io"
+	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
+	"connectrpc.com/connect"
+	app "github.com/Sachin24704/go-backend/gen/app"
+	appconnect "github.com/Sachin24704/go-backend/gen/app/appconnect"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type service struct {
+type TwitterServer struct {
 	db *sql.DB
 }
 
-func (s *service) postTweet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	db := s.db
-	userIDStr := r.PathValue("userid")
-	if userIDStr == "" {
-		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
-		return
-	}
-	userID, err := strconv.Atoi(userIDStr)
+// to create user
+func (twitter *TwitterServer) CreateUser(ctx context.Context, req *connect.Request[app.CreateUserRequest]) (*connect.Response[app.User], error) {
+	db := twitter.db
+	name := req.Msg.GetName()
+	user_id := uuid.NewString()
+	_, err := db.Exec("INSERT INTO users (user_id, name) VALUES ($1, $2)", user_id, name)
 	if err != nil {
-		http.Error(w, "cannot parse ID", http.StatusInternalServerError)
-		return
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	var exists bool
-	row := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1)", userID)
-	err = row.Scan(&exists)
+	row := db.QueryRow("SELECT to_char(created_at, 'DD-MM-YYYY HH24:MI:SS') AS created_at FROM users WHERE user_id = ($1)", user_id)
+	var createdAt string
+	err = row.Scan(&createdAt)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if err == sql.ErrNoRows {
+			return nil, connect.NewError(connect.CodeInvalidArgument, sql.ErrNoRows)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if !exists {
-		http.Error(w, "User does not exist", http.StatusNotFound)
-		return
-	}
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "error while reading request body ", http.StatusInternalServerError)
-		return
-	}
-	body_map := make(map[string]string)
-	err = json.Unmarshal(body, &body_map)
-	if err != nil {
-		http.Error(w, "error while unmarshalling data from json ", http.StatusInternalServerError)
-		return
-	}
-	tweet, ok := body_map["tweet"]
-	if !ok || len(tweet) == 0 {
-		http.Error(w, "Tweet not found in request body", http.StatusBadRequest)
-		return
-	}
-	_, err = db.Exec("INSERT INTO tweets (user_id, tweet) VALUES ($1, $2)", userID, tweet)
-	if err != nil {
-		http.Error(w, "Failed to add tweet to database", http.StatusInternalServerError)
-		return
-	}
-	io.WriteString(w, "Successfully added the Tweet")
+	res := connect.NewResponse(&app.User{
+		Name:       name,
+		Id:         user_id,
+		CreateTime: createdAt,
+	})
+	return res, nil
 }
 
-func (s *service) getTweets(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	db := s.db
-	userIDStr := r.PathValue("userid")
-	if userIDStr == "" {
-		http.Error(w, "User ID not found in URL", http.StatusBadRequest)
-		return
-	}
-	userID, err := strconv.Atoi(userIDStr)
+// to delete user
+func (twitter *TwitterServer) DeletUser(ctx context.Context, req *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error) {
+	db := twitter.db
+	user_id := req.Msg.GetId()
+	_, err := db.Exec("DELETE FROM users WHERE user_id= ($1)", user_id)
 	if err != nil {
-		http.Error(w, "cannot seperate index from URL", http.StatusInternalServerError)
-		return
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	var exists bool
-	row := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1)", userID)
-	err = row.Scan(&exists)
+	// to delete tweets of user from tweets table
+	_, err = db.Exec("DELETE FROM tweets WHERE user_id= ($1)", user_id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if !exists {
-		http.Error(w, "User does not exist", http.StatusNotFound)
-		return
-	}
-	rows, err := db.Query("SELECT tweet FROM tweets WHERE user_id = $1", userID)
+	return nil, nil
+}
+
+// Add a new tweet
+func (twitter *TwitterServer) CreateTweet(ctx context.Context, req *connect.Request[app.CreateTweetRequest]) (*connect.Response[emptypb.Empty], error) {
+	db := twitter.db
+	tweet := req.Msg.GetTweet()
+	user_id := req.Msg.GetAuthor()
+	tweet_id := uuid.NewString()
+	row := db.QueryRow("SELECT name FROM users WHERE user_id = ($1)", user_id)
+	var name string
+	err := row.Scan(&name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	tweets := make([]string, 0)
-	for rows.Next() {
-		var tweet string
-		err := rows.Scan(&tweet)
-		if err != nil {
-			http.Error(w, "error while scanning tweets", http.StatusInternalServerError)
-			return
+		if err == sql.ErrNoRows {
+			return nil, connect.NewError(connect.CodeInvalidArgument, sql.ErrNoRows)
 		}
-		tweets = append(tweets, tweet)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if len(tweets) == 0 {
-		io.WriteString(w, "No tweets for this user")
-		return
-	}
-	//convert to json
-	jsonData, err := json.Marshal(tweets)
+	_, err = db.Exec("INSERT INTO tweets (user_id, tweet ,tweet_id) VALUES ($1, $2, $3)", user_id, tweet, tweet_id)
 	if err != nil {
-		http.Error(w, "cannot convert tweets to json", http.StatusInternalServerError)
-		return
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	io.WriteString(w, string(jsonData))
+	var res connect.Response[emptypb.Empty]
+	res.Header().Set(name, "New Tweet Created!!!")
+	return nil, nil
+}
+
+// listing tweets of a particular author
+func (twitter *TwitterServer) ListTweets(ctx context.Context, req *connect.Request[app.ListTweetsRequest]) (*connect.Response[app.ListTweetsResponse], error) {
+	db := twitter.db
+	user_id := req.Msg.GetAuthor()
+	row := db.QueryRow("SELECT name FROM users WHERE user_id = ($1)", user_id)
+	var name string
+	err := row.Scan(&name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Println("user doesnot exist")
+			return nil, connect.NewError(connect.CodeInvalidArgument, sql.ErrNoRows)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	rows, err := db.Query("SELECT tweet_id, tweet, to_char(created_at, 'DD-MM-YYYY HH24:MI:SS') AS created_at FROM tweets WHERE user_id = $1", user_id)
+	if err != nil {
+		log.Println("cannot get tweets from table")
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	// defer rows.Close()
+	tweets := make([]*app.Tweet, 0)
+	for rows.Next() {
+		var tweet, tweet_id, created_at string
+		err := rows.Scan(&tweet_id, &tweet, &created_at)
+		if err != nil {
+			log.Println("cannot scan rows")
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		tweets = append(tweets, &app.Tweet{
+			Id:         tweet_id,
+			Author:     user_id,
+			Tweet:      tweet,
+			CreateTime: created_at,
+		})
+	}
+	res := connect.NewResponse(&app.ListTweetsResponse{Tweets: tweets})
+	return res, nil
+}
+
+// delete a tweet
+func (twitter *TwitterServer) DeleteTweet(ctx context.Context, req *connect.Request[app.DeleteTweetRequest]) (*connect.Response[emptypb.Empty], error) {
+	db := twitter.db
+	tweet_id := req.Msg.GetId()
+	_, err := db.Exec("DELETE FROM tweets WHERE tweet_id = ($1)", tweet_id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	var res *connect.Response[emptypb.Empty]
+	res.Header().Set(tweet_id, "tweet deleted")
+	return nil, nil
 }
 
 func main() {
-	// connect to db
-	db, err := sql.Open("postgres", "postgres://postgres:123456@localhost:5432/twitter?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:123456@localhost:5432/twitter_new?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -134,9 +148,18 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("DB connected")
-	s := &service{db: db}
-	// in body json of key "tweet"- eg{"tweet":"hello world"}
-	http.HandleFunc("/post-tweet/{userid}", s.postTweet)
-	http.HandleFunc("/get-tweets/{userid}", s.getTweets)
+	twitter := &TwitterServer{db: db}
+	mux := http.NewServeMux()
+	user_path, user_handler := appconnect.NewUserServiceHandler(twitter)
+	tweet_path, tweet_handler := appconnect.NewTweetServiceHandler(twitter)
+	fmt.Println("user path : ", user_path)
+	fmt.Println("tweet path : ", tweet_path)
+	mux.Handle(user_path, user_handler)
+	mux.Handle(tweet_path, tweet_handler)
 	log.Fatal(http.ListenAndServe(":8000", nil))
+	// http.ListenAndServe(
+	//     "localhost:8080",
+	//     // Use h2c so we can serve HTTP/2 without TLS.
+	//     h2c.NewHandler(mux, &http2.Server{}),
+	// )
 }
