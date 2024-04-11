@@ -6,3 +6,7 @@ plugins:
   - plugin: connect-go
     out: gen
     opt: paths=source_relative
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/Sachin24704/go-backend/gen
