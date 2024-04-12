@@ -15,9 +15,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-//var _ appconnect.UserServiceHandler = (*TwitterServer)(nil)
-//var _ appconnect.TweetServiceHandler = (*TwitterServer)(nil)
-
 type TwitterServer struct {
 	db *sql.DB
 }
@@ -76,7 +73,7 @@ func (user *User) DeleteUser(ctx context.Context, req *connect.Request[app.Delet
 	}
 	//var res *connect.Response[emptypb.Empty]
 	res := &connect.Response[emptypb.Empty]{}
-	res.Header().Set(user_id,"user deleted")
+	res.Header().Set(user_id, "user deleted")
 	return res, nil
 }
 
@@ -169,7 +166,7 @@ func main() {
 	}
 	log.Println("DB connected")
 	twitter := &TwitterServer{db: db}
-	user := &User{db : db}
+	user := &User{db: db}
 	mux := http.NewServeMux()
 	user_path, user_handler := appconnect.NewUserServiceHandler(user)
 	tweet_path, tweet_handler := appconnect.NewTweetServiceHandler(twitter)
@@ -178,9 +175,4 @@ func main() {
 	mux.Handle(user_path, user_handler)
 	mux.Handle(tweet_path, tweet_handler)
 	log.Fatal(http.ListenAndServe(":8000", mux))
-	// http.ListenAndServe(
-	//     "localhost:8000",
-	//     // Use h2c so we can serve HTTP/2 without TLS.
-	//     h2c.NewHandler(mux, &http2.Server{}),
-	// )
 }
