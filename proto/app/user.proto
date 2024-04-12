@@ -18,7 +18,7 @@ service UserService{
     // to add a new user
     rpc CreateUser(CreateUserRequest) returns(User);
     // to delete an existing user
-    rpc DeletUser(DeletUserRequest)returns(google.protobuf.Empty);
+    rpc DeleteUser(DeleteUserRequest)returns(google.protobuf.Empty);
 }
 
 message  CreateUserRequest {
@@ -26,7 +26,7 @@ message  CreateUserRequest {
     string name = 1;
 }
 
-message DeletUserRequest {
+message DeleteUserRequest {
     // id of the user
     string id = 1;
 }

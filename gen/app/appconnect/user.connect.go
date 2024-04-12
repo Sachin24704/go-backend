@@ -36,15 +36,15 @@ const (
 const (
 	// UserServiceCreateUserProcedure is the fully-qualified name of the UserService's CreateUser RPC.
 	UserServiceCreateUserProcedure = "/proto.UserService/CreateUser"
-	// UserServiceDeletUserProcedure is the fully-qualified name of the UserService's DeletUser RPC.
-	UserServiceDeletUserProcedure = "/proto.UserService/DeletUser"
+	// UserServiceDeleteUserProcedure is the fully-qualified name of the UserService's DeleteUser RPC.
+	UserServiceDeleteUserProcedure = "/proto.UserService/DeleteUser"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	userServiceServiceDescriptor          = app.File_app_user_proto.Services().ByName("UserService")
 	userServiceCreateUserMethodDescriptor = userServiceServiceDescriptor.Methods().ByName("CreateUser")
-	userServiceDeletUserMethodDescriptor  = userServiceServiceDescriptor.Methods().ByName("DeletUser")
+	userServiceDeleteUserMethodDescriptor = userServiceServiceDescriptor.Methods().ByName("DeleteUser")
 )
 
 // UserServiceClient is a client for the proto.UserService service.
@@ -52,7 +52,7 @@ type UserServiceClient interface {
 	// to add a new user
 	CreateUser(context.Context, *connect.Request[app.CreateUserRequest]) (*connect.Response[app.User], error)
 	// to delete an existing user
-	DeletUser(context.Context, *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteUser(context.Context, *connect.Request[app.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error)
 }
 
 // NewUserServiceClient constructs a client for the proto.UserService service. By default, it uses
@@ -71,10 +71,10 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceCreateUserMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
-		deletUser: connect.NewClient[app.DeletUserRequest, emptypb.Empty](
+		deleteUser: connect.NewClient[app.DeleteUserRequest, emptypb.Empty](
 			httpClient,
-			baseURL+UserServiceDeletUserProcedure,
-			connect.WithSchema(userServiceDeletUserMethodDescriptor),
+			baseURL+UserServiceDeleteUserProcedure,
+			connect.WithSchema(userServiceDeleteUserMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -83,7 +83,7 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
 	createUser *connect.Client[app.CreateUserRequest, app.User]
-	deletUser  *connect.Client[app.DeletUserRequest, emptypb.Empty]
+	deleteUser *connect.Client[app.DeleteUserRequest, emptypb.Empty]
 }
 
 // CreateUser calls proto.UserService.CreateUser.
@@ -91,9 +91,9 @@ func (c *userServiceClient) CreateUser(ctx context.Context, req *connect.Request
 	return c.createUser.CallUnary(ctx, req)
 }
 
-// DeletUser calls proto.UserService.DeletUser.
-func (c *userServiceClient) DeletUser(ctx context.Context, req *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error) {
-	return c.deletUser.CallUnary(ctx, req)
+// DeleteUser calls proto.UserService.DeleteUser.
+func (c *userServiceClient) DeleteUser(ctx context.Context, req *connect.Request[app.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error) {
+	return c.deleteUser.CallUnary(ctx, req)
 }
 
 // UserServiceHandler is an implementation of the proto.UserService service.
@@ -101,7 +101,7 @@ type UserServiceHandler interface {
 	// to add a new user
 	CreateUser(context.Context, *connect.Request[app.CreateUserRequest]) (*connect.Response[app.User], error)
 	// to delete an existing user
-	DeletUser(context.Context, *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteUser(context.Context, *connect.Request[app.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -116,18 +116,18 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceCreateUserMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
-	userServiceDeletUserHandler := connect.NewUnaryHandler(
-		UserServiceDeletUserProcedure,
-		svc.DeletUser,
-		connect.WithSchema(userServiceDeletUserMethodDescriptor),
+	userServiceDeleteUserHandler := connect.NewUnaryHandler(
+		UserServiceDeleteUserProcedure,
+		svc.DeleteUser,
+		connect.WithSchema(userServiceDeleteUserMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceCreateUserProcedure:
 			userServiceCreateUserHandler.ServeHTTP(w, r)
-		case UserServiceDeletUserProcedure:
-			userServiceDeletUserHandler.ServeHTTP(w, r)
+		case UserServiceDeleteUserProcedure:
+			userServiceDeleteUserHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -141,6 +141,6 @@ func (UnimplementedUserServiceHandler) CreateUser(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.UserService.CreateUser is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) DeletUser(context.Context, *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.UserService.DeletUser is not implemented"))
+func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *connect.Request[app.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.UserService.DeleteUser is not implemented"))
 }

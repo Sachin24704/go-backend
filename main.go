@@ -15,13 +15,20 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+//var _ appconnect.UserServiceHandler = (*TwitterServer)(nil)
+//var _ appconnect.TweetServiceHandler = (*TwitterServer)(nil)
+
 type TwitterServer struct {
 	db *sql.DB
 }
 
+type User struct {
+	db *sql.DB
+}
+
 // to create user
-func (twitter *TwitterServer) CreateUser(ctx context.Context, req *connect.Request[app.CreateUserRequest]) (*connect.Response[app.User], error) {
-	db := twitter.db
+func (user *User) CreateUser(ctx context.Context, req *connect.Request[app.CreateUserRequest]) (*connect.Response[app.User], error) {
+	db := user.db
 	name := req.Msg.GetName()
 	user_id := uuid.NewString()
 	_, err := db.Exec("INSERT INTO users (user_id, name) VALUES ($1, $2)", user_id, name)
@@ -46,19 +53,31 @@ func (twitter *TwitterServer) CreateUser(ctx context.Context, req *connect.Reque
 }
 
 // to delete user
-func (twitter *TwitterServer) DeletUser(ctx context.Context, req *connect.Request[app.DeletUserRequest]) (*connect.Response[emptypb.Empty], error) {
-	db := twitter.db
+func (user *User) DeleteUser(ctx context.Context, req *connect.Request[app.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error) {
+	db := user.db
 	user_id := req.Msg.GetId()
-	_, err := db.Exec("DELETE FROM users WHERE user_id= ($1)", user_id)
+	row := db.QueryRow("SELECT name FROM users WHERE user_id = ($1)", user_id)
+	var name string
+	err := row.Scan(&name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, connect.NewError(connect.CodeInvalidArgument, sql.ErrNoRows)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	_, err = db.Exec("DELETE FROM users WHERE user_id= ($1)", user_id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	// to delete tweets of user from tweets table
+	//to delete tweets of user from tweets table
 	_, err = db.Exec("DELETE FROM tweets WHERE user_id= ($1)", user_id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return nil, nil
+	//var res *connect.Response[emptypb.Empty]
+	res := &connect.Response[emptypb.Empty]{}
+	res.Header().Set(user_id,"user deleted")
+	return res, nil
 }
 
 // Add a new tweet
@@ -67,9 +86,10 @@ func (twitter *TwitterServer) CreateTweet(ctx context.Context, req *connect.Requ
 	tweet := req.Msg.GetTweet()
 	user_id := req.Msg.GetAuthor()
 	tweet_id := uuid.NewString()
-	row := db.QueryRow("SELECT name FROM users WHERE user_id = ($1)", user_id)
-	var name string
-	err := row.Scan(&name)
+	// to check if user_id is present in users table
+	row := db.QueryRow("SELECT user_id FROM users WHERE user_id = ($1)", user_id)
+	var userID string
+	err := row.Scan(&userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeInvalidArgument, sql.ErrNoRows)
@@ -80,9 +100,9 @@ func (twitter *TwitterServer) CreateTweet(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	var res connect.Response[emptypb.Empty]
-	res.Header().Set(name, "New Tweet Created!!!")
-	return nil, nil
+	res := &connect.Response[emptypb.Empty]{}
+	res.Header().Set(user_id, "New Tweet Created!!!")
+	return res, nil
 }
 
 // listing tweets of a particular author
@@ -132,9 +152,9 @@ func (twitter *TwitterServer) DeleteTweet(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	var res *connect.Response[emptypb.Empty]
+	res := &connect.Response[emptypb.Empty]{}
 	res.Header().Set(tweet_id, "tweet deleted")
-	return nil, nil
+	return res, nil
 }
 
 func main() {
@@ -149,16 +169,17 @@ func main() {
 	}
 	log.Println("DB connected")
 	twitter := &TwitterServer{db: db}
+	user := &User{db : db}
 	mux := http.NewServeMux()
-	user_path, user_handler := appconnect.NewUserServiceHandler(twitter)
+	user_path, user_handler := appconnect.NewUserServiceHandler(user)
 	tweet_path, tweet_handler := appconnect.NewTweetServiceHandler(twitter)
 	fmt.Println("user path : ", user_path)
 	fmt.Println("tweet path : ", tweet_path)
 	mux.Handle(user_path, user_handler)
 	mux.Handle(tweet_path, tweet_handler)
-	log.Fatal(http.ListenAndServe(":8000", nil))
+	log.Fatal(http.ListenAndServe(":8000", mux))
 	// http.ListenAndServe(
-	//     "localhost:8080",
+	//     "localhost:8000",
 	//     // Use h2c so we can serve HTTP/2 without TLS.
 	//     h2c.NewHandler(mux, &http2.Server{}),
 	// )
