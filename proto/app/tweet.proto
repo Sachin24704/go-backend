@@ -17,7 +17,7 @@ message Tweet{
 
 service TweetService{
     // Add a new tweet
-    rpc CreateTweet(CreateTweetRequest) returns (google.protobuf.Empty);
+    rpc CreateTweet(CreateTweetRequest) returns (Tweet);
     // listing tweets of a particular author
     rpc ListTweets(ListTweetsRequest) returns (ListTweetsResponse);
     // delete a tweet

@@ -55,7 +55,7 @@ var (
 // TweetServiceClient is a client for the proto.TweetService service.
 type TweetServiceClient interface {
 	// Add a new tweet
-	CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[emptypb.Empty], error)
+	CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[app.Tweet], error)
 	// listing tweets of a particular author
 	ListTweets(context.Context, *connect.Request[app.ListTweetsRequest]) (*connect.Response[app.ListTweetsResponse], error)
 	// delete a tweet
@@ -72,7 +72,7 @@ type TweetServiceClient interface {
 func NewTweetServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) TweetServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &tweetServiceClient{
-		createTweet: connect.NewClient[app.CreateTweetRequest, emptypb.Empty](
+		createTweet: connect.NewClient[app.CreateTweetRequest, app.Tweet](
 			httpClient,
 			baseURL+TweetServiceCreateTweetProcedure,
 			connect.WithSchema(tweetServiceCreateTweetMethodDescriptor),
@@ -95,13 +95,13 @@ func NewTweetServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // tweetServiceClient implements TweetServiceClient.
 type tweetServiceClient struct {
-	createTweet *connect.Client[app.CreateTweetRequest, emptypb.Empty]
+	createTweet *connect.Client[app.CreateTweetRequest, app.Tweet]
 	listTweets  *connect.Client[app.ListTweetsRequest, app.ListTweetsResponse]
 	deleteTweet *connect.Client[app.DeleteTweetRequest, emptypb.Empty]
 }
 
 // CreateTweet calls proto.TweetService.CreateTweet.
-func (c *tweetServiceClient) CreateTweet(ctx context.Context, req *connect.Request[app.CreateTweetRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *tweetServiceClient) CreateTweet(ctx context.Context, req *connect.Request[app.CreateTweetRequest]) (*connect.Response[app.Tweet], error) {
 	return c.createTweet.CallUnary(ctx, req)
 }
 
@@ -118,7 +118,7 @@ func (c *tweetServiceClient) DeleteTweet(ctx context.Context, req *connect.Reque
 // TweetServiceHandler is an implementation of the proto.TweetService service.
 type TweetServiceHandler interface {
 	// Add a new tweet
-	CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[emptypb.Empty], error)
+	CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[app.Tweet], error)
 	// listing tweets of a particular author
 	ListTweets(context.Context, *connect.Request[app.ListTweetsRequest]) (*connect.Response[app.ListTweetsResponse], error)
 	// delete a tweet
@@ -166,7 +166,7 @@ func NewTweetServiceHandler(svc TweetServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedTweetServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedTweetServiceHandler struct{}
 
-func (UnimplementedTweetServiceHandler) CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedTweetServiceHandler) CreateTweet(context.Context, *connect.Request[app.CreateTweetRequest]) (*connect.Response[app.Tweet], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.TweetService.CreateTweet is not implemented"))
 }
 
