@@ -47,14 +47,6 @@ func (tc *TweetCreate) SetUserID(s string) *TweetCreate {
 	return tc
 }
 
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (tc *TweetCreate) SetNillableUserID(s *string) *TweetCreate {
-	if s != nil {
-		tc.SetUserID(*s)
-	}
-	return tc
-}
-
 // SetID sets the "id" field.
 func (tc *TweetCreate) SetID(s string) *TweetCreate {
 	tc.mutation.SetID(s)
@@ -64,14 +56,6 @@ func (tc *TweetCreate) SetID(s string) *TweetCreate {
 // SetAuthorID sets the "author" edge to the User entity by ID.
 func (tc *TweetCreate) SetAuthorID(id string) *TweetCreate {
 	tc.mutation.SetAuthorID(id)
-	return tc
-}
-
-// SetNillableAuthorID sets the "author" edge to the User entity by ID if the given value is not nil.
-func (tc *TweetCreate) SetNillableAuthorID(id *string) *TweetCreate {
-	if id != nil {
-		tc = tc.SetAuthorID(*id)
-	}
 	return tc
 }
 
@@ -128,6 +112,12 @@ func (tc *TweetCreate) check() error {
 	}
 	if _, ok := tc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Tweet.created_at"`)}
+	}
+	if _, ok := tc.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Tweet.user_id"`)}
+	}
+	if _, ok := tc.mutation.AuthorID(); !ok {
+		return &ValidationError{Name: "author", err: errors.New(`ent: missing required edge "Tweet.author"`)}
 	}
 	return nil
 }

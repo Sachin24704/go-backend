@@ -19,7 +19,9 @@ func (User) Fields() []ent.Field {
 		field.String("id").
 		Immutable().
 		Unique(),
-		field.String("name"),
+		field.String("name").
+		MinLen(1).
+		MaxLen(50),
 		field.Time("created_at").
 		Default(time.Now),
 	}

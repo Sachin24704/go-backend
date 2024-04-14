@@ -22,13 +22,13 @@ func main() {
 	if err := client.Schema.Create(context.Background()); err != nil {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
-	tweet := services.NewTweetService(client)
-	user := services.NewUserService(client)
+	//tweet := services.NewTweetService(client)
+	//user := services.NewUserService(client)
 	mux := http.NewServeMux()
-	user_path, user_handler := appconnect.NewUserServiceHandler(user)
-	tweet_path, tweet_handler := appconnect.NewTweetServiceHandler(tweet)
+	//user_path, user_handler := appconnect.NewUserServiceHandler(services.NewUserService(client))
+	//tweet_path, tweet_handler := appconnect.NewTweetServiceHandler(services.NewTweetService(client))
 	fmt.Println("DB and server started")
-	mux.Handle(user_path, user_handler)
-	mux.Handle(tweet_path, tweet_handler)
+	mux.Handle(appconnect.NewUserServiceHandler(services.NewUserService(client.User)))
+	mux.Handle(appconnect.NewTweetServiceHandler(services.NewTweetService(client)))
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }

@@ -22,8 +22,7 @@ func (Tweet) Fields() []ent.Field {
 		field.String("tweet"),
 		field.Time("created_at").
 		Default(time.Now),
-		field.String("user_id").
-		Optional(),
+		field.String("user_id"),
 	}
 }
 
@@ -33,6 +32,7 @@ func (Tweet) Edges() []ent.Edge {
 		edge.From("author",User.Type).
 		Ref("tweets").
 		Unique().
-		Field("user_id"),
+		Field("user_id").
+		Required(),
     }
 }

@@ -71,23 +71,9 @@ func (tu *TweetUpdate) SetNillableUserID(s *string) *TweetUpdate {
 	return tu
 }
 
-// ClearUserID clears the value of the "user_id" field.
-func (tu *TweetUpdate) ClearUserID() *TweetUpdate {
-	tu.mutation.ClearUserID()
-	return tu
-}
-
 // SetAuthorID sets the "author" edge to the User entity by ID.
 func (tu *TweetUpdate) SetAuthorID(id string) *TweetUpdate {
 	tu.mutation.SetAuthorID(id)
-	return tu
-}
-
-// SetNillableAuthorID sets the "author" edge to the User entity by ID if the given value is not nil.
-func (tu *TweetUpdate) SetNillableAuthorID(id *string) *TweetUpdate {
-	if id != nil {
-		tu = tu.SetAuthorID(*id)
-	}
 	return tu
 }
 
@@ -134,7 +120,18 @@ func (tu *TweetUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (tu *TweetUpdate) check() error {
+	if _, ok := tu.mutation.AuthorID(); tu.mutation.AuthorCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Tweet.author"`)
+	}
+	return nil
+}
+
 func (tu *TweetUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := tu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tweet.Table, tweet.Columns, sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeString))
 	if ps := tu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -240,23 +237,9 @@ func (tuo *TweetUpdateOne) SetNillableUserID(s *string) *TweetUpdateOne {
 	return tuo
 }
 
-// ClearUserID clears the value of the "user_id" field.
-func (tuo *TweetUpdateOne) ClearUserID() *TweetUpdateOne {
-	tuo.mutation.ClearUserID()
-	return tuo
-}
-
 // SetAuthorID sets the "author" edge to the User entity by ID.
 func (tuo *TweetUpdateOne) SetAuthorID(id string) *TweetUpdateOne {
 	tuo.mutation.SetAuthorID(id)
-	return tuo
-}
-
-// SetNillableAuthorID sets the "author" edge to the User entity by ID if the given value is not nil.
-func (tuo *TweetUpdateOne) SetNillableAuthorID(id *string) *TweetUpdateOne {
-	if id != nil {
-		tuo = tuo.SetAuthorID(*id)
-	}
 	return tuo
 }
 
@@ -316,7 +299,18 @@ func (tuo *TweetUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (tuo *TweetUpdateOne) check() error {
+	if _, ok := tuo.mutation.AuthorID(); tuo.mutation.AuthorCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Tweet.author"`)
+	}
+	return nil
+}
+
 func (tuo *TweetUpdateOne) sqlSave(ctx context.Context) (_node *Tweet, err error) {
+	if err := tuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(tweet.Table, tweet.Columns, sqlgraph.NewFieldSpec(tweet.FieldID, field.TypeString))
 	id, ok := tuo.mutation.ID()
 	if !ok {

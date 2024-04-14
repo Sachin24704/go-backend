@@ -37,9 +37,12 @@ func (tweet *TweetService) CreateTweet(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
 	}
-	t, err := client.Tweet.Create().
-		SetID(tweetId).SetTweet(tweetMsg).
-		SetAuthor(u).Save(ctx)
+	t, err := client.Tweet.
+		Create().
+		SetID(tweetId).
+		SetTweet(tweetMsg).
+		SetUserID(u.ID).
+		Save(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("cannot create new tweet"))
 	}
@@ -65,7 +68,10 @@ func (tweetService *TweetService) ListTweets(ctx context.Context, req *connect.R
 		Where(user.ID(userId)).
 		Only(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
+		if ent.IsNotFound(err) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
+		}
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("error while running query for checking user_id in users"))
 	}
 	t, err := client.Tweet.
 		Query().
@@ -94,7 +100,9 @@ func (tweet *TweetService) DeleteTweet(ctx context.Context, req *connect.Request
 		client  = tweet.client
 		tweetId = req.Msg.GetId()
 	)
-	err := client.Tweet.DeleteOneID(tweetId).Exec(ctx)
+	err := client.Tweet.
+		DeleteOneID(tweetId).
+		Exec(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("tweet_id doesnot exist in tweets"))

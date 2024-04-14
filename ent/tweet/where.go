@@ -240,16 +240,6 @@ func UserIDHasSuffix(v string) predicate.Tweet {
 	return predicate.Tweet(sql.FieldHasSuffix(FieldUserID, v))
 }
 
-// UserIDIsNil applies the IsNil predicate on the "user_id" field.
-func UserIDIsNil() predicate.Tweet {
-	return predicate.Tweet(sql.FieldIsNull(FieldUserID))
-}
-
-// UserIDNotNil applies the NotNil predicate on the "user_id" field.
-func UserIDNotNil() predicate.Tweet {
-	return predicate.Tweet(sql.FieldNotNull(FieldUserID))
-}
-
 // UserIDEqualFold applies the EqualFold predicate on the "user_id" field.
 func UserIDEqualFold(v string) predicate.Tweet {
 	return predicate.Tweet(sql.FieldEqualFold(FieldUserID, v))
