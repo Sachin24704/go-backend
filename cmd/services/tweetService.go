@@ -2,98 +2,87 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"log"
 
 	"connectrpc.com/connect"
+	"github.com/Sachin24704/go-backend/ent"
+	"github.com/Sachin24704/go-backend/ent/tweet"
+	"github.com/Sachin24704/go-backend/ent/user"
 	"github.com/Sachin24704/go-backend/gen/app"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type TweetService struct {
-	db *sql.DB
+	client *ent.Client
 }
 
-func NewTweetService(db *sql.DB) *TweetService{
-	return &TweetService{db : db}
+func NewTweetService(client *ent.Client) *TweetService {
+	return &TweetService{client: client}
 }
 
 // Add a new tweet
 func (tweet *TweetService) CreateTweet(ctx context.Context, req *connect.Request[app.CreateTweetRequest]) (*connect.Response[app.Tweet], error) {
-	var(
-		db = tweet.db
-	    tweetMsg = req.Msg.GetTweet()
-	    userId = req.Msg.GetAuthor()
-	    tweetId = uuid.NewString()
-    )
+	var (
+		client   = tweet.client
+		tweetMsg = req.Msg.GetTweet()
+		userId   = req.Msg.GetAuthor()
+		tweetId  = uuid.NewString()
+	)
 	// to check if user_id is present in users table
-	row := db.QueryRow("SELECT user_id FROM users WHERE user_id = ($1)", userId)
-	var userID string
-	err := row.Scan(&userID)
+	u, err := client.User.
+		Query().
+		Where(user.ID(userId)).
+		Only(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, errors.New("error while scanning for user_id"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
 	}
-	_, err = db.Exec("INSERT INTO tweets (user_id, tweet ,tweet_id) VALUES ($1, $2, $3)", userId, tweetMsg, tweetId)
+	t, err := client.Tweet.Create().
+		SetID(tweetId).SetTweet(tweetMsg).
+		SetAuthor(u).Save(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("error while creating tweet in DB"))
-	}
-	row = db.QueryRow("SELECT to_char(created_at, 'DD-MM-YYYY HH24:MI:SS') AS created_at FROM tweets WHERE tweet_id = ($1)", tweetId)
-	var createdAt string
-	err = row.Scan(&createdAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("tweet_id doesnot exist in tweets"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, errors.New("error while scanning for created_at"))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("cannot create new tweet"))
 	}
 	res := connect.NewResponse(&app.Tweet{
-		Id: tweetId, 
-		CreateTime: createdAt,
-		Author: userId, 
-		Tweet: tweetMsg,
+		Id:         t.ID,
+		CreateTime: t.CreatedAt.Format("02-01-2006 15:04:05"),
+		Author:     t.UserID,
+		Tweet:      t.Tweet,
 	})
 	res.Header().Set(userId, "New Tweet Created!!!")
 	return res, nil
 }
 
 // listing tweets of a particular author
-func (tweet *TweetService) ListTweets(ctx context.Context, req *connect.Request[app.ListTweetsRequest]) (*connect.Response[app.ListTweetsResponse], error) {
-	var(
-	db = tweet.db
-	userId = req.Msg.GetAuthor()
-)
-	row := db.QueryRow("SELECT name FROM users WHERE user_id = ($1)", userId)
-	var name string
-	err := row.Scan(&name)
+func (tweetService *TweetService) ListTweets(ctx context.Context, req *connect.Request[app.ListTweetsRequest]) (*connect.Response[app.ListTweetsResponse], error) {
+	var (
+		client = tweetService.client
+		userId = req.Msg.GetAuthor()
+	)
+	// to check if user_id is present in users table
+	_, err := client.User.
+		Query().
+		Where(user.ID(userId)).
+		Only(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Println("user doesnot exist")
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, errors.New("error while scanning for user_id in users table"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("user_id doesnot exist in DB"))
 	}
-	rows, err := db.Query("SELECT tweet_id, tweet, to_char(created_at, 'DD-MM-YYYY HH24:MI:SS') AS created_at FROM tweets WHERE user_id = $1", userId)
+	t, err := client.Tweet.
+		Query().
+		Where(tweet.UserID(userId)).
+		All(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("cannot get tweets from table"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("cannot query tweets"))
 	}
 	tweets := make([]*app.Tweet, 0)
-	for rows.Next() {
-		var tweetMsg, tweetId, createdAt string
-		err := rows.Scan(&tweetId, &tweetMsg, &createdAt)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("cannot scan tweet from rows"))
-		}
+	for _, v := range t {
 		tweets = append(tweets, &app.Tweet{
-			Id:         tweetId,
-			Author:     userId,
-			Tweet:      tweetMsg,
-			CreateTime: createdAt,
+			Id:         v.ID,
+			Author:     v.UserID,
+			Tweet:      v.Tweet,
+			CreateTime: v.CreatedAt.Format("02-01-2006 15:04:05"),
 		})
+
 	}
 	res := connect.NewResponse(&app.ListTweetsResponse{Tweets: tweets})
 	return res, nil
@@ -101,23 +90,16 @@ func (tweet *TweetService) ListTweets(ctx context.Context, req *connect.Request[
 
 // delete a tweet
 func (tweet *TweetService) DeleteTweet(ctx context.Context, req *connect.Request[app.DeleteTweetRequest]) (*connect.Response[emptypb.Empty], error) {
-	var(
-		db = tweet.db
+	var (
+		client  = tweet.client
 		tweetId = req.Msg.GetId()
 	)
-	row := db.QueryRow("SELECT tweet_id FROM tweets WHERE tweet_id = ($1)", tweetId)
-	var tweetID string
-	err := row.Scan(&tweetID)
+	err := client.Tweet.DeleteOneID(tweetId).Exec(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if ent.IsNotFound(err) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("tweet_id doesnot exist in tweets"))
 		}
-		return nil, connect.NewError(connect.CodeInternal, errors.New("error while scanning for tweet_id"))
-	}
-	
-	_, err = db.Exec("DELETE FROM tweets WHERE tweet_id = ($1)", tweetId)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("cannot delete the tweet from database"))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("error while deleting tweet from tweets"))
 	}
 	res := &connect.Response[emptypb.Empty]{}
 	res.Header().Set(tweetId, "tweet deleted")
